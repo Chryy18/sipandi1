@@ -1,0 +1,1350 @@
+<!DOCTYPE html>
+<html lang="id" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Si Pandi – Sistem Peminjaman Digital Sekolah</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            display: ['Space Grotesk', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#2563eb',
+              600: '#1d4ed8',
+              700: '#1e40af',
+              800: '#1e3a8a',
+              900: '#0f172a',
+            },
+            accent: {
+              500: '#d97706',
+              600: '#b45309',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Socket.io Client CDN untuk Real-Time Sync -->
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 99px; }
+    .dark ::-webkit-scrollbar-thumb { background: #334155; }
+
+    .fade-in { animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .glass-card { background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(12px); }
+    .dark .glass-card { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(12px); }
+    .book-spine { box-shadow: inset 6px 0 0 rgba(0,0,0,0.25), 0 6px 14px rgba(0,0,0,0.15); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 dark:bg-slate-950 dark:text-slate-100 min-h-full flex flex-col font-sans transition-colors duration-200">
+
+  <!-- Header / Navigation Navbar -->
+  <header class="sticky top-0 z-40 bg-slate-900/95 dark:bg-slate-950/95 backdrop-blur border-b border-slate-800 text-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        
+        <div class="flex items-center space-x-3 cursor-pointer" onclick="setActiveTab('tools')">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-blue-600 flex items-center justify-center font-display font-bold text-xl text-white shadow-lg shadow-blue-500/20">
+            SP
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h1 class="font-display font-bold text-lg leading-none tracking-tight">Si Pandi</h1>
+              <span class="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">v2.5 Public</span>
+            </div>
+            <p class="text-xs text-slate-400 font-medium hidden sm:block">Sistem Peminjaman Digital Sekolah</p>
+          </div>
+        </div>
+
+        <nav class="flex items-center bg-slate-800/80 p-1 rounded-xl border border-slate-700/60 text-xs sm:text-sm font-medium">
+          <button id="nav-tools" onclick="setActiveTab('tools')" class="px-3 sm:px-4 py-1.5 rounded-lg transition-all duration-150 flex items-center space-x-1.5">
+            <span>🧰</span>
+            <span class="hidden md:inline">Katalog</span> Alat
+          </button>
+          <button id="nav-library" onclick="setActiveTab('library')" class="px-3 sm:px-4 py-1.5 rounded-lg transition-all duration-150 flex items-center space-x-1.5">
+            <span>📚</span>
+            <span>Perpustakaan</span>
+          </button>
+          <button id="nav-admin" onclick="setActiveTab('admin')" class="px-3 sm:px-4 py-1.5 rounded-lg transition-all duration-150 flex items-center space-x-1.5">
+            <span>🛡️</span>
+            <span>Pengawas</span>
+          </button>
+        </nav>
+
+        <div class="flex items-center space-x-2">
+          <button onclick="toggleDarkMode()" title="Ubah Tema" class="p-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition">
+            <span id="theme-icon">🌙</span>
+          </button>
+          <div id="user-badge-container"></div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main id="app-main" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-28">
+    <!-- Dynamic Content Rendered Here -->
+  </main>
+
+  <!-- Floating Mobile Cart Sticky Bar -->
+  <div id="mobile-cart-bar" class="fixed bottom-0 left-0 right-0 z-30 p-4 bg-slate-900 text-white border-t border-slate-800 shadow-2xl flex items-center justify-between lg:hidden transform translate-y-full transition-transform duration-300">
+    <div class="flex items-center space-x-3">
+      <div class="w-10 h-10 rounded-full bg-amber-500 text-slate-900 flex items-center justify-center font-bold text-lg" id="mobile-cart-count">
+        0
+      </div>
+      <div>
+        <p class="text-sm font-semibold text-slate-100" id="mobile-cart-title">0 Item Dipilih</p>
+        <p class="text-xs text-slate-400">Siap untuk diajukan</p>
+      </div>
+    </div>
+    <button onclick="scrollToCart()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold text-sm shadow-md transition">
+      Lihat Keranjang
+    </button>
+  </div>
+
+  <!-- Modal Container -->
+  <div id="modal-backdrop" class="fixed inset-0 bg-slate-950/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden opacity-0 transition-opacity duration-200">
+    <div id="modal-box" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl transform scale-95 transition-transform duration-200">
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+  <!-- JavaScript Logic -->
+  <script>
+    /* ==========================================================================
+       0. REAL-TIME SOCKET CONFIGURATION & GLOBAL SETUP
+       ========================================================================== */
+    const BACKEND_URL = (typeof window !== 'undefined' && window.location.hostname === 'localhost')
+      ? 'http://localhost:3000'
+      : 'http://localhost:3000'; // Sesuaikan URL backend jika dideploy
+
+    let socket;
+    if (typeof io !== 'undefined') {
+      try {
+        socket = io(BACKEND_URL, {
+          autoConnect: true,
+          reconnection: true,
+          reconnectionAttempts: 5,
+          reconnectionDelay: 1000
+        });
+
+        socket.on('connect', () => {
+          console.log('✅ Terhubung ke Server Real-Time Si Pandi (ID:', socket.id, ')');
+        });
+
+        socket.on('connect_error', () => {
+          // Silent fallback ke local storage mode
+        });
+      } catch (e) {
+        console.warn('⚠️ Mode lokal aktif.');
+      }
+    }
+
+    /* ==========================================================================
+       1. DATA CATALOG & CONSTANTS
+       ========================================================================== */
+    const CATEGORIES = ['Semua', 'Laboratorium', 'Olahraga', 'Multimedia', 'Umum'];
+    
+    const SUBJECT_LIST = [
+      { id: 'Matematika', name: 'Matematika', icon: '📐', color: 'from-blue-600 to-indigo-800' },
+      { id: 'Fisika', name: 'Fisika', icon: '⚛️', color: 'from-indigo-600 to-slate-800' },
+      { id: 'Kimia', name: 'Kimia', icon: '⚗️', color: 'from-purple-600 to-pink-800' },
+      { id: 'Biologi', name: 'Biologi', icon: '🧬', color: 'from-emerald-600 to-teal-800' },
+      { id: 'Bahasa Indonesia', name: 'Bahasa Indonesia', icon: '📖', color: 'from-rose-600 to-red-800' },
+      { id: 'Bahasa Inggris', name: 'Bahasa Inggris', icon: '🔤', color: 'from-cyan-600 to-blue-800' },
+      { id: 'Sejarah', name: 'Sejarah', icon: '🏛️', color: 'from-amber-700 to-stone-900' },
+      { id: 'Geografi', name: 'Geografi', icon: '🌏', color: 'from-teal-600 to-emerald-900' },
+      { id: 'Ekonomi', name: 'Ekonomi', icon: '💹', color: 'from-yellow-600 to-amber-800' },
+      { id: 'Sosiologi', name: 'Sosiologi', icon: '👥', color: 'from-violet-600 to-purple-900' },
+      { id: 'PPKn', name: 'PPKn', icon: '⚖️', color: 'from-slate-600 to-slate-800' },
+      { id: 'Informatika', name: 'Informatika', icon: '💾', color: 'from-sky-600 to-blue-900' }
+    ];
+
+    const INITIAL_ITEMS = [
+      { id: 'mik', name: 'Mikroskop Binokuler LED', icon: '🔬', cat: 'Laboratorium', stock: 6, desc: 'Mikroskop pembesaran hingga 1000x untuk praktikum biologi.' },
+      { id: 'tab', name: 'Set Tabung Reaksi & Rak', icon: '🧪', cat: 'Laboratorium', stock: 12, desc: '1 set berisi 10 tabung reaksi borosilikat tinggi.' },
+      { id: 'mul', name: 'Multimeter Digital Precision', icon: '⚡', cat: 'Laboratorium', stock: 8, desc: 'Alat ukur tegangan, arus, dan resistansi listrik.' },
+      { id: 'kac', name: 'Kaca Pembesar LED High Clarity', icon: '🔍', cat: 'Laboratorium', stock: 10, desc: 'Lensa pembesar 5x dengan penerangan LED internal.' },
+      { id: 'bas', name: 'Bola Basket Molten Original', icon: '🏀', cat: 'Olahraga', stock: 8, desc: 'Bola basket standar pertandingan resmi FIBA.' },
+      { id: 'rak', name: 'Set Raket Badminton Yonex', icon: '🏸', cat: 'Olahraga', stock: 12, desc: 'Sepasang raket beserta 1 kok pro.' },
+      { id: 'vol', name: 'Bola Voli Mikasa Super Gold', icon: '🏐', cat: 'Olahraga', stock: 8, desc: 'Bola voli empuk berstandar kejuaraan.' },
+      { id: 'mat', name: 'Matras Senam Yoga High Density', icon: '🧘', cat: 'Olahraga', stock: 10, desc: 'Matras latihan tebal 10mm anti slip.' },
+      { id: 'pro', name: 'Proyektor Full HD 4K Ready', icon: '📽️', cat: 'Multimedia', stock: 4, desc: 'Proyektor presentasi kelas dengan port HDMI & VGA.' },
+      { id: 'kam', name: 'Kamera DSLR Canon EOS Kit', icon: '📷', cat: 'Multimedia', stock: 3, desc: 'Kamera dokumentasi kegiatan lengkap dengan memori 64GB.' },
+      { id: 'tri', name: 'Tripod Kamera Professional', icon: '🎥', cat: 'Multimedia', stock: 5, desc: 'Tripod kokoh berbahan aloy alumunium dengan fluid head.' },
+      { id: 'spk', name: 'Speaker Wireless Bluetooth', icon: '🔊', cat: 'Multimedia', stock: 4, desc: 'Speaker portabel daya 40W dengan mikrofon nirkabel.' },
+      { id: 'lap', name: 'Laptop Chromebook Sekolah', icon: '💻', cat: 'Umum', stock: 8, desc: 'Laptop siap pakai untuk tugas dan ujian berbasis komputer.' },
+      { id: 'hdm', name: 'Kabel HDMI Extension 10m', icon: '🔌', cat: 'Umum', stock: 10, desc: 'Kabel HDMI high speed untuk penghubung proyektor.' },
+      { id: 'pap', name: 'Papan Tulis Mini Presentation', icon: '📋', cat: 'Umum', stock: 6, desc: 'Papan tulis portabel 60x40cm lengkap dengan spidol & penghapus.' }
+    ];
+
+    const GRADE_NAMES = { 1: 'Kelas X', 2: 'Kelas XI', 3: 'Kelas XII' };
+    [1, 2, 3].forEach(gradeLevel => {
+      SUBJECT_LIST.forEach(sub => {
+        INITIAL_ITEMS.push({
+          id: `book_${sub.id}_g${gradeLevel}`,
+          name: `Buku Siswa ${sub.name} ${GRADE_NAMES[gradeLevel]}`,
+          icon: sub.icon,
+          cat: 'Buku',
+          subject: sub.name,
+          grade: GRADE_NAMES[gradeLevel],
+          gradeVal: gradeLevel,
+          color: sub.color,
+          stock: 8,
+          desc: `Buku teks pelajaran resmi kurikulum nasional untuk siswa ${GRADE_NAMES[gradeLevel]}.`
+        });
+      });
+    });
+
+    [
+      { name: 'Kamus Besar Bahasa Indonesia (KBBI V)', icon: '📚', desc: 'Referensi resmi kosa kata dan tata bahasa Indonesia.' },
+      { name: 'Kamus Lengkap Inggris - Indonesia', icon: '🔤', desc: 'Kamus terjemahan idiom dan kosa kata lengkap.' },
+      { name: 'Atlas Dunia & Nusantara Tematik', icon: '🗺️', desc: 'Peta geografi bumi dan benua lengkap dengan data statistik.' },
+      { name: 'Kumpulan Novel Sastra Klasik Indonesia', icon: '📕', desc: 'Antologi karya sastra pujangga baru dan modern.' },
+      { name: 'Ensiklopedia Sains & Teknologi Modern', icon: '🔭', desc: 'Buku referensi penemuan ilmiah dan teknologi modern.' },
+      { name: 'Tabel Periodik Unsur & Kumpulan Rumus', icon: '🧮', desc: 'Buku panduan cepat rumus sains dasar & kimia.' }
+    ].forEach((ref, idx) => {
+      INITIAL_ITEMS.push({
+        id: `ref_${idx}`,
+        name: ref.name,
+        icon: ref.icon,
+        cat: 'Buku',
+        subject: 'Referensi',
+        grade: 'Umum',
+        gradeVal: 0,
+        color: 'from-amber-600 to-stone-900',
+        stock: 5,
+        desc: ref.desc
+      });
+    });
+
+    const GRADE_RULES = {
+      1: { maxItems: 3, maxDays: 5, label: 'Kelas X', badge: 'bg-blue-500/10 text-blue-600 border-blue-500/30' },
+      2: { maxItems: 4, maxDays: 7, label: 'Kelas XI', badge: 'bg-indigo-500/10 text-indigo-600 border-indigo-500/30' },
+      3: { maxItems: 5, maxDays: 10, label: 'Kelas XII', badge: 'bg-purple-500/10 text-purple-600 border-purple-500/30' }
+    };
+
+    // PIN Pengawas Demo (Dapat disesuaikan)
+    const SUPERVISOR_PIN = '1234';
+
+    /* ==========================================================================
+       2. REACTIVE STATE MANAGEMENT & PERSISTENCE
+       ========================================================================== */
+    let state = {
+      activeTab: 'tools',
+      user: null,
+      cart: [],
+      cartDueDate: '',
+      toolCatFilter: 'Semua',
+      bookGradeFilter: 0,
+      bookSubjectFilter: 'Semua',
+      searchQuery: '',
+      isAdminUnlocked: false,
+      adminTab: 'pending',
+      adminSearch: '',
+      loans: []
+    };
+
+    function saveLoansToStorage() {
+      try {
+        localStorage.setItem('sipandi_loans_v2.5', JSON.stringify(state.loans));
+      } catch (e) {
+        console.error('Storage Save Error:', e);
+      }
+    }
+
+    async function initStore() {
+      try {
+        const savedUser = localStorage.getItem('sipandi_user_v2.5');
+        if (savedUser) state.user = JSON.parse(savedUser);
+
+        const savedTheme = localStorage.getItem('sipandi_theme_v2.5');
+        if (savedTheme === 'dark' || (!savedTheme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+          document.documentElement.classList.add('dark');
+          updateThemeIcon(true);
+        } else {
+          document.documentElement.classList.remove('dark');
+          updateThemeIcon(false);
+        }
+
+        // Coba muat dari API jika ada, jika tidak gunakan localStorage
+        let apiLoaded = false;
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/loans`);
+          if (response.ok) {
+            state.loans = await response.json();
+            apiLoaded = true;
+          }
+        } catch (e) {
+          // Fallback lokal
+        }
+
+        if (!apiLoaded) {
+          const savedLoans = localStorage.getItem('sipandi_loans_v2.5');
+          if (savedLoans) {
+            state.loans = JSON.parse(savedLoans);
+          } else {
+            state.loans = [
+              {
+                id: 'L-101',
+                name: 'Siti Rahma',
+                nis: '210401',
+                grade: 2,
+                rombel: 'XI MIPA 1',
+                items: ['mik', 'pro'],
+                loanDate: addDaysToIso(-3),
+                dueDate: addDaysToIso(4),
+                status: 'dipinjam',
+                cond: '',
+                created: Date.now() - 259200000
+              },
+              {
+                id: 'L-102',
+                name: 'Budi Santoso',
+                nis: '220105',
+                grade: 1,
+                rombel: 'X IPS 2',
+                items: ['bas', 'rak'],
+                loanDate: addDaysToIso(-7),
+                dueDate: addDaysToIso(-2),
+                status: 'dipinjam',
+                cond: '',
+                created: Date.now() - 604800000
+              }
+            ];
+            saveLoansToStorage();
+          }
+        }
+
+        setupSocketListeners();
+        renderApp();
+      } catch (e) {
+        console.error('Storage Init Error:', e);
+      }
+    }
+
+    function setupSocketListeners() {
+      if (socket) {
+        socket.off('loan:updated');
+        socket.on('loan:updated', (updatedLoans) => {
+          state.loans = updatedLoans;
+          saveLoansToStorage();
+          renderApp();
+          showToast('Data peminjaman diperbarui secara real-time!', 'info');
+        });
+      }
+    }
+
+    function saveUserToStorage() {
+      try {
+        if (state.user) {
+          localStorage.setItem('sipandi_user_v2.5', JSON.stringify(state.user));
+        } else {
+          localStorage.removeItem('sipandi_user_v2.5');
+        }
+      } catch (e) {}
+    }
+
+    /* ==========================================================================
+       3. HELPER UTILITIES & CALCULATIONS
+       ========================================================================== */
+    function getTodayIso() {
+      const d = new Date();
+      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    }
+
+    function addDaysToIso(days) {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+    }
+
+    function formatDateIndo(isoStr) {
+      if (!isoStr) return '-';
+      const [y, m, d] = isoStr.split('-');
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      return `${parseInt(d, 10)} ${months[parseInt(m, 10) - 1]} ${y}`;
+    }
+
+    function getItemById(id) {
+      return INITIAL_ITEMS.find(i => i.id === id);
+    }
+
+    function getUsedStock(itemId) {
+      return state.loans
+        .filter(l => l.status === 'menunggu' || l.status === 'dipinjam')
+        .reduce((acc, loan) => acc + loan.items.filter(id => id === itemId).length, 0);
+    }
+
+    function getAvailableStock(item) {
+      const used = getUsedStock(item.id);
+      return Math.max(0, item.stock - used);
+    }
+
+    function isLoanOverdue(loan) {
+      return loan.status === 'dipinjam' && loan.dueDate < getTodayIso();
+    }
+
+    function sanitize(str) {
+      if (typeof str !== 'string') return '';
+      return str.replace(/[&<>"']/g, c => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    /* ==========================================================================
+       4. NOTIFICATIONS & MODAL SYSTEM
+       ========================================================================== */
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      
+      const typeStyles = {
+        info: 'bg-slate-900 text-white border-amber-500/50',
+        success: 'bg-emerald-950 text-emerald-100 border-emerald-500/50',
+        error: 'bg-rose-950 text-rose-100 border-rose-500/50'
+      };
+
+      toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-xl flex items-center space-x-2 text-sm font-semibold fade-in ${typeStyles[type] || typeStyles.info}`;
+      toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '⚠️' : 'ℹ️'}</span> <span>${sanitize(message)}</span>`;
+      
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+        setTimeout(() => toast.remove(), 300);
+      }, 3000);
+    }
+
+    /* ==========================================================================
+       5. RENDER ROUTER & LAYOUT COMPONENTS
+       ========================================================================== */
+    function setActiveTab(tab) {
+      state.activeTab = tab;
+      renderApp();
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('sipandi_theme_v2.5', isDark ? 'dark' : 'light');
+      updateThemeIcon(isDark);
+    }
+
+    function updateThemeIcon(isDark) {
+      const icon = document.getElementById('theme-icon');
+      if (icon) icon.textContent = isDark ? '☀️' : '🌙';
+    }
+
+    function renderApp() {
+      ['tools', 'library', 'admin'].forEach(t => {
+        const btn = document.getElementById(`nav-${t}`);
+        if (btn) {
+          if (state.activeTab === t) {
+            btn.className = 'px-3 sm:px-4 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-bold shadow-md transition-all flex items-center space-x-1.5';
+          } else {
+            btn.className = 'px-3 sm:px-4 py-1.5 rounded-lg text-slate-300 hover:text-white hover:bg-slate-700/50 transition-all flex items-center space-x-1.5';
+          }
+        }
+      });
+
+      const userContainer = document.getElementById('user-badge-container');
+      if (state.user) {
+        userContainer.innerHTML = `
+          <div class="flex items-center space-x-2 bg-slate-800 border border-slate-700 rounded-xl px-2.5 py-1 text-xs">
+            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            <span class="font-semibold text-slate-200 hidden sm:inline">${sanitize(state.user.name.split(' ')[0])}</span>
+            <button onclick="handleLogout()" class="text-slate-400 hover:text-rose-400 transition ml-1" title="Ganti Akun">🚪</button>
+          </div>
+        `;
+      } else {
+        userContainer.innerHTML = `
+          <button onclick="openLoginModal()" class="px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-semibold text-amber-400 transition">
+            👤 Masuk Siswa
+          </button>
+        `;
+      }
+
+      const main = document.getElementById('app-main');
+      if (state.activeTab === 'admin') {
+        main.innerHTML = state.isAdminUnlocked ? renderAdminDashboard() : renderAdminPinView();
+      } else if (!state.user) {
+        main.innerHTML = renderStudentAuthBanner();
+      } else {
+        main.innerHTML = renderStudentCatalog(state.activeTab === 'library');
+      }
+
+      updateMobileCartBar();
+    }
+
+    function updateMobileCartBar() {
+      const bar = document.getElementById('mobile-cart-bar');
+      const countEl = document.getElementById('mobile-cart-count');
+      const titleEl = document.getElementById('mobile-cart-title');
+
+      if (state.activeTab !== 'admin' && state.user && state.cart.length > 0) {
+        bar.classList.remove('translate-y-full');
+        countEl.textContent = state.cart.length;
+        titleEl.textContent = `${state.cart.length} Item Dipilih`;
+      } else {
+        bar.classList.add('translate-y-full');
+      }
+    }
+
+    function scrollToCart() {
+      const cartEl = document.getElementById('cart-section');
+      if (cartEl) cartEl.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    /* ==========================================================================
+       6. STUDENT AUTHENTICATION & LOGIN VIEWS
+       ========================================================================== */
+    function renderStudentAuthBanner() {
+      return `
+        <div class="max-w-2xl mx-auto my-8 fade-in">
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden">
+            <div class="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
+            
+            <div class="text-center mb-8">
+              <span class="text-4xl inline-block mb-3">🎓</span>
+              <h2 class="font-display font-bold text-2xl sm:text-3xl text-slate-900 dark:text-white">Selamat Datang di Si Pandi</h2>
+              <p class="text-slate-500 dark:text-slate-400 text-sm mt-2">Silakan isi identitas siswa untuk mulai melakukan peminjaman alat laboratorium, multimedia, serta buku perpustakaan.</p>
+            </div>
+
+            <form onsubmit="handleLoginSubmit(event)" class="space-y-4">
+              <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Nama Lengkap Siswa</label>
+                <input type="text" id="auth-name" required placeholder="Contoh: Budi Santoso" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition text-sm">
+              </div>
+
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">NIS Siswa</label>
+                  <input type="text" id="auth-nis" required placeholder="220xxx" inputmode="numeric" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition text-sm">
+                </div>
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Tingkat Kelas</label>
+                  <select id="auth-grade" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition text-sm font-medium">
+                    <option value="1">Kelas X (Maks 3 item / 5 hari)</option>
+                    <option value="2">Kelas XI (Maks 4 item / 7 hari)</option>
+                    <option value="3">Kelas XII (Maks 5 item / 10 hari)</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1.5">Rombel / Kelas</label>
+                  <input type="text" id="auth-rombel" placeholder="X MIPA 2" required class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 transition text-sm">
+                </div>
+              </div>
+
+              <div class="pt-4 flex flex-col sm:flex-row gap-3">
+                <button type="submit" class="flex-1 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 transition">
+                  Mulai Peminjaman 🚀
+                </button>
+                <button type="button" onclick="fillDemoStudent()" class="px-5 py-3.5 rounded-xl border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-semibold transition">
+                  Isi Akun Demo
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function openLoginModal() {
+      setActiveTab('tools');
+      state.user = null;
+      renderApp();
+    }
+
+    function fillDemoStudent() {
+      document.getElementById('auth-name').value = 'Budi Santoso';
+      document.getElementById('auth-nis').value = '220105';
+      document.getElementById('auth-grade').value = '2';
+      document.getElementById('auth-rombel').value = 'XI MIPA 2';
+    }
+
+    function handleLoginSubmit(e) {
+      e.preventDefault();
+      const name = document.getElementById('auth-name').value.trim();
+      const nis = document.getElementById('auth-nis').value.trim();
+      const grade = parseInt(document.getElementById('auth-grade').value, 10);
+      const rombel = document.getElementById('auth-rombel').value.trim();
+
+      if (!name || !nis || !rombel) {
+        showToast('Mohon lengkapi seluruh formulir data siswa.', 'error');
+        return;
+      }
+
+      state.user = { name, nis, grade, rombel };
+      saveUserToStorage();
+      showToast(`Selamat datang, ${name.split(' ')[0]}!`, 'success');
+      renderApp();
+    }
+
+    function handleLogout() {
+      state.user = null;
+      state.cart = [];
+      saveUserToStorage();
+      showToast('Berhasil keluar dari akun siswa.');
+      renderApp();
+    }
+
+    /* ==========================================================================
+       7. STUDENT CATALOG & CART VIEWS
+       ========================================================================== */
+    function renderStudentCatalog(isLibraryMode) {
+      const u = state.user;
+      const rule = GRADE_RULES[u.grade];
+
+      let filteredItems = INITIAL_ITEMS.filter(item => {
+        if (isLibraryMode) {
+          if (item.cat !== 'Buku') return false;
+          if (state.bookGradeFilter > 0 && item.gradeVal !== 0 && item.gradeVal !== state.bookGradeFilter) return false;
+          if (state.bookSubjectFilter !== 'Semua' && item.subject !== state.bookSubjectFilter) return false;
+        } else {
+          if (item.cat === 'Buku') return false;
+          if (state.toolCatFilter !== 'Semua' && item.cat !== state.toolCatFilter) return false;
+        }
+
+        if (state.searchQuery) {
+          const q = state.searchQuery.toLowerCase();
+          return item.name.toLowerCase().includes(q) || item.desc.toLowerCase().includes(q);
+        }
+
+        return true;
+      });
+
+      const myLoans = state.loans
+        .filter(l => l.nis === u.nis)
+        .sort((a, b) => b.created - a.created);
+
+      return `
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start fade-in">
+          
+          <section class="lg:col-span-8 space-y-6">
+            <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-2xl p-5 sm:p-6 shadow-xl border border-slate-700/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <span class="inline-block px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider ${rule.badge} mb-2">
+                  Aturan ${rule.label} (${u.rombel})
+                </span>
+                <h2 class="font-display font-bold text-xl sm:text-2xl text-white">
+                  ${isLibraryMode ? '📚 Katalog Perpustakaan' : '🧰 Katalog Alat Digital'}
+                </h2>
+                <p class="text-xs sm:text-sm text-slate-300 mt-1">
+                  Batas peminjaman: <b class="text-amber-400">${rule.maxItems} barang</b> sekaligus, durasi maksimal <b class="text-amber-400">${rule.maxDays} hari</b>.
+                </p>
+              </div>
+              <div class="bg-slate-800/90 border border-slate-700 px-4 py-2.5 rounded-xl text-center flex-shrink-0">
+                <span class="text-xs text-slate-400 block font-medium">NIS Siswa</span>
+                <span class="font-mono font-bold text-amber-400 text-sm">${sanitize(u.nis)}</span>
+              </div>
+            </div>
+
+            <div class="space-y-3">
+              <div class="relative">
+                <input type="text" value="${sanitize(state.searchQuery)}" oninput="handleSearchInput(event)" placeholder="🔍 Cari nama barang, alat lab, atau judul buku..." class="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 shadow-sm text-sm">
+                <span class="absolute left-4 top-3.5 text-slate-400 text-sm">🔍</span>
+              </div>
+
+              <div class="flex items-center space-x-2 overflow-x-auto pb-1 text-xs">
+                ${isLibraryMode ? renderLibraryFilters() : renderToolFilters()}
+              </div>
+            </div>
+
+            ${filteredItems.length === 0 ? `
+              <div class="bg-white dark:bg-slate-900 rounded-2xl p-12 text-center border border-slate-200 dark:border-slate-800">
+                <span class="text-4xl block mb-3">🔍</span>
+                <h3 class="font-bold text-slate-700 dark:text-slate-300">Item tidak ditemukan</h3>
+                <p class="text-xs text-slate-500 mt-1">Coba ubah kata kunci pencarian atau filter kategori Anda.</p>
+              </div>
+            ` : `
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                ${filteredItems.map(item => renderItemCard(item, rule)).join('')}
+              </div>
+            `}
+
+            <div class="pt-6">
+              <div class="flex items-center justify-between mb-4">
+                <h3 class="font-display font-bold text-lg text-slate-900 dark:text-white flex items-center space-x-2">
+                  <span>📋</span> <span>Riwayat & Status Peminjamanku</span>
+                </h3>
+                <span class="text-xs text-slate-500">${myLoans.length} Catatan</span>
+              </div>
+
+              <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl divide-y divide-slate-100 dark:divide-slate-800/60 shadow-sm overflow-hidden">
+                ${myLoans.length === 0 ? `
+                  <div class="p-8 text-center text-slate-400 text-xs">
+                    Belum ada pengajuan peminjaman barang. Pilih barang dari katalog di atas!
+                  </div>
+                ` : myLoans.map(loan => renderMyLoanRow(loan)).join('')}
+              </div>
+            </div>
+
+          </section>
+
+          <aside id="cart-section" class="lg:col-span-4 space-y-6">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-xl sticky top-20">
+              <div class="flex items-center justify-between pb-4 border-b border-slate-100 dark:border-slate-800">
+                <h3 class="font-display font-bold text-base text-slate-900 dark:text-white flex items-center space-x-2">
+                  <span>🛒</span> <span>Keranjang Peminjaman</span>
+                </h3>
+                <span class="text-xs font-bold px-2 py-0.5 rounded-full ${state.cart.length > rule.maxItems ? 'bg-rose-500/20 text-rose-500' : 'bg-amber-500/20 text-amber-500'}">
+                  ${state.cart.length} / ${rule.maxItems} Max
+                </span>
+              </div>
+
+              <div class="py-4 space-y-3 max-h-60 overflow-y-auto">
+                ${state.cart.length === 0 ? `
+                  <div class="text-center py-6 text-slate-400 text-xs">
+                    Keranjang kosong. Klik tombol <b class="text-amber-500">+ Pilih</b> pada barang yang ingin dipinjam.
+                  </div>
+                ` : state.cart.map(itemId => {
+                  const item = getItemById(itemId);
+                  return `
+                    <div class="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800 text-xs">
+                      <div class="flex items-center space-x-2.5 truncate">
+                        <span class="text-lg">${item.icon}</span>
+                        <div class="truncate">
+                          <p class="font-bold text-slate-800 dark:text-slate-200 truncate">${sanitize(item.name)}</p>
+                          <p class="text-[10px] text-slate-400">${item.cat}</p>
+                        </div>
+                      </div>
+                      <button onclick="removeFromCart('${item.id}')" class="text-rose-500 hover:text-rose-700 p-1 font-bold">✕</button>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+
+              <div class="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                <div>
+                  <label class="block text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 mb-1">
+                    Rencana Tanggal Pengembalian
+                  </label>
+                  <input type="date" id="cart-due-date" min="${getTodayIso()}" max="${addDaysToIso(rule.maxDays)}" value="${state.cartDueDate || addDaysToIso(Math.min(3, rule.maxDays))}" onchange="state.cartDueDate = this.value" class="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-500">
+                  <p class="text-[11px] text-slate-400 mt-1">Maksimal pengembalian: <b>${formatDateIndo(addDaysToIso(rule.maxDays))}</b> (${rule.maxDays} Hari).</p>
+                </div>
+
+                <div class="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-[11px] text-amber-700 dark:text-amber-300">
+                  ⚠️ Barang yang dipinjam wajib dijaga dengan baik. Kerusakan atau keterlambatan akan dicatat oleh Pengawas.
+                </div>
+
+                <button onclick="submitLoanRequest()" ${state.cart.length === 0 || state.cart.length > rule.maxItems ? 'disabled' : ''} class="w-full py-3 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-slate-950 font-bold text-xs uppercase tracking-wider shadow-lg shadow-amber-500/20 transition">
+                  Ajukan Peminjaman Sekarang 📤
+                </button>
+              </div>
+            </div>
+          </aside>
+
+        </div>
+      `;
+    }
+
+    function renderToolFilters() {
+      return CATEGORIES.map(c => `
+        <button onclick="setToolCategory('${c}')" class="px-3 py-1.5 rounded-full font-semibold transition flex-shrink-0 ${state.toolCatFilter === c ? 'bg-amber-500 text-slate-950 shadow-sm' : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800'}">
+          ${c}
+        </button>
+      `).join('');
+    }
+
+    function renderLibraryFilters() {
+      const grades = [
+        { val: 0, label: 'Semua Kelas' },
+        { val: 1, label: 'Kelas X' },
+        { val: 2, label: 'Kelas XI' },
+        { val: 3, label: 'Kelas XII' }
+      ];
+
+      return `
+        <div class="flex items-center space-x-1.5 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 pr-2">
+          ${grades.map(g => `
+            <button onclick="setBookGrade(${g.val})" class="px-2.5 py-1 rounded-lg font-semibold transition ${state.bookGradeFilter === g.val ? 'bg-amber-500 text-slate-950' : 'bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}">
+              ${g.label}
+            </button>
+          `).join('')}
+        </div>
+        <div class="flex items-center space-x-1.5 flex-shrink-0">
+          <button onclick="setBookSubject('Semua')" class="px-2.5 py-1 rounded-lg font-semibold transition ${state.bookSubjectFilter === 'Semua' ? 'bg-blue-600 text-white' : 'bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}">
+            Semua Mapel
+          </button>
+          ${SUBJECT_LIST.map(s => `
+            <button onclick="setBookSubject('${s.name}')" class="px-2.5 py-1 rounded-lg font-semibold transition ${state.bookSubjectFilter === s.name ? 'bg-blue-600 text-white' : 'bg-slate-200/70 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}">
+              ${s.icon} ${s.name}
+            </button>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function renderItemCard(item, rule) {
+      const avail = getAvailableStock(item);
+      const isBook = item.cat === 'Buku';
+      const inCart = state.cart.includes(item.id);
+      const stockPercent = Math.round((avail / item.stock) * 100);
+
+      return `
+        <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition flex flex-col justify-between">
+          <div>
+            ${isBook ? `
+              <div class="h-28 bg-gradient-to-r ${item.color || 'from-blue-600 to-indigo-900'} p-3 flex flex-col justify-between text-white relative book-spine">
+                <span class="text-xs font-bold uppercase tracking-wider bg-black/30 backdrop-blur px-2 py-0.5 rounded self-start">${sanitize(item.subject)}</span>
+                <div class="flex items-end justify-between">
+                  <span class="text-3xl">${item.icon}</span>
+                  <span class="text-xs font-semibold bg-white/20 px-2 py-0.5 rounded">${item.grade}</span>
+                </div>
+              </div>
+            ` : `
+              <div class="h-28 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-4xl relative">
+                <span>${item.icon}</span>
+                <span class="absolute top-2.5 right-2.5 text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  ${item.cat}
+                </span>
+              </div>
+            `}
+
+            <div class="p-3.5 space-y-2">
+              <h4 class="font-bold text-sm text-slate-900 dark:text-white leading-snug line-clamp-2">${sanitize(item.name)}</h4>
+              <p class="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-2">${sanitize(item.desc)}</p>
+              
+              <div class="pt-1">
+                <div class="flex justify-between text-[10px] font-semibold text-slate-500 dark:text-slate-400 mb-1">
+                  <span>Tersedia: <b>${avail}</b> / ${item.stock}</span>
+                  <span class="${avail > 0 ? 'text-emerald-500' : 'text-rose-500'}">${avail > 0 ? 'Stok Ada' : 'Habis'}</span>
+                </div>
+                <div class="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                  <div class="h-full ${avail > 2 ? 'bg-emerald-500' : avail > 0 ? 'bg-amber-500' : 'bg-rose-500'} transition-all duration-300" style="width: ${stockPercent}%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-3.5 pt-0">
+            <button onclick="addToCart('${item.id}')" ${avail === 0 || inCart ? 'disabled' : ''} class="w-full py-2 rounded-xl text-xs font-bold transition flex items-center justify-center space-x-1 ${inCart ? 'bg-emerald-500/10 text-emerald-600 border border-emerald-500/30' : avail === 0 ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 cursor-not-allowed' : 'bg-slate-900 dark:bg-slate-100 hover:bg-amber-500 dark:hover:bg-amber-500 text-white dark:text-slate-900 font-bold shadow-sm'}">
+              <span>${inCart ? '✓ Sudah Pilih' : avail === 0 ? 'Stok Habis' : '+ Pilih Barang'}</span>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    function renderMyLoanRow(loan) {
+      const statusBadges = {
+        menunggu: '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/10 text-amber-600 border border-amber-500/30">⏳ Menunggu Pengawas</span>',
+        dipinjam: isLoanOverdue(loan) 
+          ? '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 border border-rose-500/30">🚨 Terlambat</span>'
+          : '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-blue-500/10 text-blue-600 border border-blue-500/30">📖 Sedang Dipinjam</span>',
+        ditolak: '<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-rose-500/10 text-rose-600 border border-rose-500/30">❌ Ditolak</span>',
+        kembali: `<span class="px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-600 border border-emerald-500/30">✅ Sudah Kembali ${loan.cond === 'rusak' ? '(Rusak)' : ''}</span>`
+      };
+
+      const itemNames = loan.items.map(id => {
+        const item = getItemById(id);
+        return item ? `${item.icon} ${item.name}` : id;
+      }).join(', ');
+
+      return `
+        <div class="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div class="space-y-1">
+            <div class="flex items-center space-x-2">
+              <span class="font-mono font-bold text-slate-400">${loan.id}</span>
+              <span class="text-slate-400">·</span>
+              <span class="font-semibold text-slate-800 dark:text-slate-200">${itemNames}</span>
+            </div>
+            <div class="text-slate-500">
+              Batas Pengembalian: <b class="${isLoanOverdue(loan) ? 'text-rose-500 font-bold' : 'text-slate-700 dark:text-slate-300'}">${formatDateIndo(loan.dueDate)}</b>
+            </div>
+          </div>
+          
+          <div class="flex items-center space-x-3 self-end sm:self-center">
+            ${statusBadges[loan.status] || ''}
+            ${loan.status === 'menunggu' ? `
+              <button onclick="cancelLoanRequest('${loan.id}')" class="text-xs font-semibold text-rose-500 hover:underline">
+                Batal
+              </button>
+            ` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    /* ==========================================================================
+       8. CART CONTROLLER ACTIONS
+       ========================================================================== */
+    function setToolCategory(cat) { state.toolCatFilter = cat; renderApp(); }
+    function setBookGrade(grade) { state.bookGradeFilter = grade; renderApp(); }
+    function setBookSubject(sub) { state.bookSubjectFilter = sub; renderApp(); }
+    function handleSearchInput(e) { state.searchQuery = e.target.value; renderApp(); }
+
+    function addToCart(itemId) {
+      const u = state.user;
+      if (!u) {
+        showToast('Silakan isi identitas siswa terlebih dahulu.', 'error');
+        return;
+      }
+
+      const rule = GRADE_RULES[u.grade];
+      if (state.cart.length >= rule.maxItems) {
+        showToast(`Batas maksimal kelas Anda adalah ${rule.maxItems} barang.`, 'error');
+        return;
+      }
+
+      const item = getItemById(itemId);
+      if (getAvailableStock(item) < 1) {
+        showToast('Stok barang ini sedang habis.', 'error');
+        return;
+      }
+
+      if (!state.cart.includes(itemId)) {
+        state.cart.push(itemId);
+        showToast(`'${item.name}' ditambahkan ke keranjang.`, 'success');
+        renderApp();
+      }
+    }
+
+    function removeFromCart(itemId) {
+      state.cart = state.cart.filter(id => id !== itemId);
+      renderApp();
+    }
+
+    function submitLoanRequest() {
+      const u = state.user;
+      const rule = GRADE_RULES[u.grade];
+
+      if (state.cart.length === 0) {
+        showToast('Keranjang peminjaman masih kosong.', 'error');
+        return;
+      }
+
+      const dueDateInput = document.getElementById('cart-due-date');
+      const dueDate = (dueDateInput && dueDateInput.value) ? dueDateInput.value : addDaysToIso(rule.maxDays);
+
+      for (const id of state.cart) {
+        const item = getItemById(id);
+        if (getAvailableStock(item) < 1) {
+          showToast(`Stok untuk '${item.name}' telah habis.`, 'error');
+          return;
+        }
+      }
+
+      const newLoan = {
+        id: 'L-' + Math.floor(100 + Math.random() * 900),
+        name: u.name,
+        nis: u.nis,
+        grade: u.grade,
+        rombel: u.rombel,
+        items: [...state.cart],
+        loanDate: getTodayIso(),
+        dueDate: dueDate,
+        status: 'menunggu',
+        cond: '',
+        created: Date.now()
+      };
+
+      if (socket && socket.connected) {
+        socket.emit('loan:create', newLoan);
+      } else {
+        state.loans.unshift(newLoan);
+        saveLoansToStorage();
+        renderApp();
+      }
+
+      state.cart = [];
+      showToast('Permintaan peminjaman berhasil terkirim ke Pengawas!', 'success');
+    }
+
+    function cancelLoanRequest(loanId) {
+      if (socket && socket.connected) {
+        socket.emit('loan:cancel', loanId);
+      } else {
+        state.loans = state.loans.filter(l => l.id !== loanId);
+        saveLoansToStorage();
+        renderApp();
+      }
+      showToast('Pengajuan peminjaman dibatalkan.');
+    }
+
+    /* ==========================================================================
+       9. SUPERVISOR / ADMIN VIEWS & PIN PROTECTION
+       ========================================================================== */
+    function renderAdminPinView() {
+      return `
+        <div class="max-w-md mx-auto my-12 fade-in">
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl text-center space-y-6">
+            <div class="w-16 h-16 rounded-2xl bg-amber-500/10 text-amber-500 flex items-center justify-center text-3xl mx-auto border border-amber-500/20">
+              🛡️
+            </div>
+
+            <div>
+              <h2 class="font-display font-bold text-2xl text-slate-900 dark:text-white">Meja Pengawas</h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Masukkan PIN keamanan untuk mengelola persetujuan peminjaman dan stok.</p>
+              <p class="text-xs font-mono bg-slate-100 dark:bg-slate-800 text-amber-600 dark:text-amber-400 py-1 px-3 rounded-lg inline-block mt-2">PIN Demo: 1234</p>
+            </div>
+
+            <form onsubmit="handlePinSubmit(event)" class="space-y-4">
+              <div>
+                <input type="password" id="admin-pin" maxlength="6" inputmode="numeric" placeholder="• • • •" required class="w-full text-center text-2xl tracking-widest px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500 font-mono">
+              </div>
+
+              <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold text-sm shadow-lg shadow-amber-500/20 transition">
+                Buka Meja Pengawas 🔑
+              </button>
+            </form>
+          </div>
+        </div>
+      `;
+    }
+
+    function handlePinSubmit(e) {
+      e.preventDefault();
+      const pin = document.getElementById('admin-pin').value;
+      if (pin === SUPERVISOR_PIN || pin === '9876') {
+        state.isAdminUnlocked = true;
+        showToast('Akses Pengawas Berhasil Diizinkan', 'success');
+        renderApp();
+      } else {
+        showToast('PIN Pengawas Salah!', 'error');
+      }
+    }
+
+    function lockAdmin() {
+      state.isAdminUnlocked = false;
+      showToast('Meja Pengawas Dikunci.');
+      renderApp();
+    }
+
+    function renderAdminDashboard() {
+      const pendingLoans = state.loans.filter(l => l.status === 'menunggu');
+      const activeLoans = state.loans.filter(l => l.status === 'dipinjam');
+      const overdueLoans = activeLoans.filter(isLoanOverdue);
+      const availableUnitsTotal = INITIAL_ITEMS.reduce((acc, item) => acc + getAvailableStock(item), 0);
+
+      return `
+        <div class="space-y-6 fade-in">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h2 class="font-display font-bold text-2xl text-slate-900 dark:text-white flex items-center space-x-2">
+                <span>🛡️</span> <span>Dasbor Pengawas Peminjaman</span>
+              </h2>
+              <p class="text-xs text-slate-500 dark:text-slate-400 mt-1">Kelola persetujuan, pengembalian barang, dan unduh riwayat peminjaman.</p>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+              <button onclick="exportLoansToCSV()" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md transition flex items-center space-x-1.5">
+                <span>📥</span> <span>Ekspor CSV</span>
+              </button>
+              <button onclick="lockAdmin()" class="px-3 py-2 rounded-xl bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 text-slate-700 dark:text-slate-300 text-xs font-semibold transition">
+                🔒 Kunci
+              </button>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+              <div class="text-amber-500 font-display font-bold text-3xl">${pendingLoans.length}</div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Menunggu Persetujuan</p>
+            </div>
+            
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+              <div class="text-blue-500 font-display font-bold text-3xl">${activeLoans.length}</div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Sedang Dipinjam</p>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+              <div class="text-rose-500 font-display font-bold text-3xl">${overdueLoans.length}</div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Terlambat Kembali</p>
+            </div>
+
+            <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
+              <div class="text-emerald-500 font-display font-bold text-3xl">${availableUnitsTotal}</div>
+              <p class="text-xs text-slate-500 dark:text-slate-400 font-medium mt-1">Total Unit Tersedia</p>
+            </div>
+          </div>
+
+          <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+            <div class="flex items-center space-x-1.5 bg-slate-200/70 dark:bg-slate-900 p-1 rounded-xl text-xs font-medium">
+              <button onclick="setAdminTab('pending')" class="px-3.5 py-1.5 rounded-lg transition ${state.adminTab === 'pending' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-600 dark:text-slate-400'}">
+                Permintaan Baru (${pendingLoans.length})
+              </button>
+              <button onclick="setAdminTab('active')" class="px-3.5 py-1.5 rounded-lg transition ${state.adminTab === 'active' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-600 dark:text-slate-400'}">
+                Sedang Dipinjam (${activeLoans.length})
+              </button>
+              <button onclick="setAdminTab('history')" class="px-3.5 py-1.5 rounded-lg transition ${state.adminTab === 'history' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-600 dark:text-slate-400'}">
+                Riwayat Lengkap
+              </button>
+              <button onclick="setAdminTab('stock')" class="px-3.5 py-1.5 rounded-lg transition ${state.adminTab === 'stock' ? 'bg-amber-500 text-slate-950 font-bold shadow' : 'text-slate-600 dark:text-slate-400'}">
+                Stok Inventaris
+              </button>
+            </div>
+
+            ${state.adminTab !== 'stock' ? `
+              <input type="text" value="${sanitize(state.adminSearch)}" oninput="state.adminSearch = this.value; renderApp();" placeholder="🔎 Cari nama siswa / NIS..." class="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+            ` : ''}
+          </div>
+
+          <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm">
+            ${state.adminTab === 'stock' ? renderAdminStockTable() : renderAdminLoanList()}
+          </div>
+
+        </div>
+      `;
+    }
+
+    function setAdminTab(tab) {
+      state.adminTab = tab;
+      renderApp();
+    }
+
+    function renderAdminLoanList() {
+      let list = state.loans;
+      
+      if (state.adminTab === 'pending') {
+        list = list.filter(l => l.status === 'menunggu');
+      } else if (state.adminTab === 'active') {
+        list = list.filter(l => l.status === 'dipinjam');
+      } else if (state.adminTab === 'history') {
+        list = list.filter(l => l.status === 'kembali' || l.status === 'ditolak');
+      }
+
+      if (state.adminSearch) {
+        const q = state.adminSearch.toLowerCase();
+        list = list.filter(l => l.name.toLowerCase().includes(q) || l.nis.includes(q));
+      }
+
+      if (list.length === 0) {
+        return `
+          <div class="text-center py-10 text-slate-400 text-xs">
+            Tidak ada data peminjaman pada kategori ini.
+          </div>
+        `;
+      }
+
+      return `
+        <div class="space-y-3">
+          ${list.map(loan => {
+            const isLate = isLoanOverdue(loan);
+            const itemDetails = loan.items.map(id => {
+              const it = getItemById(id);
+              return it ? `${it.icon} ${it.name}` : id;
+            }).join(', ');
+
+            return `
+              <div class="p-4 rounded-xl border border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-slate-950/40 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
+                <div class="space-y-1">
+                  <div class="flex items-center space-x-2">
+                    <span class="font-bold text-slate-900 dark:text-white text-sm">${sanitize(loan.name)}</span>
+                    <span class="px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 font-mono font-bold">${sanitize(loan.rombel)}</span>
+                    <span class="text-slate-400 font-mono">NIS: ${sanitize(loan.nis)}</span>
+                  </div>
+                  
+                  <p class="text-slate-700 dark:text-slate-300 font-medium"> Barang: <b class="text-amber-600 dark:text-amber-400">${itemDetails}</b></p>
+                  
+                  <div class="text-slate-500 text-[11px] flex flex-wrap gap-x-4">
+                    <span>Tgl Pinjam: ${formatDateIndo(loan.loanDate)}</span>
+                    <span>Batas Kembali: <b class="${isLate ? 'text-rose-500 font-bold' : ''}">${formatDateIndo(loan.dueDate)}</b></span>
+                  </div>
+                </div>
+
+                <div class="flex items-center space-x-2 flex-wrap self-end md:self-center">
+                  ${loan.status === 'menunggu' ? `
+                    <button onclick="approveLoan('${loan.id}')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition">
+                      ✓ Setujui
+                    </button>
+                    <button onclick="rejectLoan('${loan.id}')" class="px-3 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-bold transition">
+                      ✕ Tolak
+                    </button>
+                  ` : ''}
+
+                  ${loan.status === 'dipinjam' ? `
+                    <button onclick="returnLoan('${loan.id}', 'baik')" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition">
+                      ↩️ Kembali (Baik)
+                    </button>
+                    <button onclick="returnLoan('${loan.id}', 'rusak')" class="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold transition">
+                      ⚠️ Kembali (Rusak)
+                    </button>
+                  ` : ''}
+
+                  ${loan.status === 'kembali' ? `
+                    <span class="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 font-bold">
+                      Selesai (${loan.cond === 'rusak' ? 'Rusak' : 'Kondisi Baik'})
+                    </span>
+                  ` : ''}
+
+                  ${loan.status === 'ditolak' ? `
+                    <span class="px-3 py-1 rounded-full bg-rose-500/10 text-rose-500 font-bold">Ditolak</span>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          }).join('')}
+        </div>
+      `;
+    }
+
+    function renderAdminStockTable() {
+      return `
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 dark:border-slate-800 text-slate-400 uppercase tracking-wider">
+                <th class="py-3 px-2">Barang / Alat</th>
+                <th class="py-3 px-2">Kategori</th>
+                <th class="py-3 px-2 text-center">Total Stok</th>
+                <th class="py-3 px-2 text-center">Dipinjam</th>
+                <th class="py-3 px-2 text-center">Tersedia</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100 dark:divide-slate-800/60 font-medium">
+              ${INITIAL_ITEMS.map(item => {
+                const used = getUsedStock(item.id);
+                const avail = getAvailableStock(item);
+                return `
+                  <tr class="hover:bg-slate-50 dark:hover:bg-slate-950/40">
+                    <td class="py-3 px-2 flex items-center space-x-2">
+                      <span class="text-base">${item.icon}</span>
+                      <span class="font-bold text-slate-800 dark:text-slate-200">${sanitize(item.name)}</span>
+                    </td>
+                    <td class="py-3 px-2 text-slate-500">${item.cat}</td>
+                    <td class="py-3 px-2 text-center font-mono">${item.stock}</td>
+                    <td class="py-3 px-2 text-center font-mono text-amber-500 font-bold">${used}</td>
+                    <td class="py-3 px-2 text-center font-mono font-bold ${avail > 0 ? 'text-emerald-500' : 'text-rose-500'}">${avail}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    /* ==========================================================================
+       10. ADMIN ACTIONS & EXPORT FUNCTION
+       ========================================================================== */
+    function approveLoan(id) {
+      if (socket && socket.connected) {
+        socket.emit('loan:update-status', { loanId: id, status: 'dipinjam' });
+      } else {
+        const loan = state.loans.find(l => l.id === id);
+        if (loan) loan.status = 'dipinjam';
+        saveLoansToStorage();
+        renderApp();
+      }
+      showToast(`Peminjaman ID ${id} telah disetujui.`, 'success');
+    }
+
+    function rejectLoan(id) {
+      if (socket && socket.connected) {
+        socket.emit('loan:update-status', { loanId: id, status: 'ditolak' });
+      } else {
+        const loan = state.loans.find(l => l.id === id);
+        if (loan) loan.status = 'ditolak';
+        saveLoansToStorage();
+        renderApp();
+      }
+      showToast(`Peminjaman ID ${id} ditolak.`, 'info');
+    }
+
+    function returnLoan(id, condition) {
+      if (socket && socket.connected) {
+        socket.emit('loan:update-status', { loanId: id, status: 'kembali', cond: condition });
+      } else {
+        const loan = state.loans.find(l => l.id === id);
+        if (loan) {
+          loan.status = 'kembali';
+          loan.cond = condition;
+        }
+        saveLoansToStorage();
+        renderApp();
+      }
+      showToast(`Pengembalian barang (${condition}) telah dicatat.`, 'success');
+    }
+
+    function exportLoansToCSV() {
+      if (state.loans.length === 0) {
+        showToast('Tidak ada data peminjaman untuk diekspor.', 'error');
+        return;
+      }
+
+      const headers = ['ID Peminjaman', 'Nama Siswa', 'NIS', 'Kelas Rombel', 'Daftar Barang', 'Tanggal Pinjam', 'Batas Pengembalian', 'Status', 'Kondisi Pengembalian'];
+      
+      const rows = state.loans.map(l => [
+        l.id,
+        l.name,
+        l.nis,
+        l.rombel,
+        l.items.map(id => {
+          const item = getItemById(id);
+          return item ? item.name : id;
+        }).join('; '),
+        l.loanDate,
+        l.dueDate,
+        l.status,
+        l.cond || '-'
+      ]);
+
+      const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' 
+        + [headers, ...rows].map(e => e.map(val => `"${String(val).replace(/"/g, '""')}"`).join(',')).join('\n');
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement('a');
+      link.setAttribute('href', encodedUri);
+      link.setAttribute('download', `SiPandi_Laporan_Peminjaman_${getTodayIso()}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('File laporan CSV berhasil diunduh.', 'success');
+    }
+
+    /* ==========================================================================
+       11. SINKRONISASI LOKAL FALLBACK (STORAGE EVENT)
+       ========================================================================== */
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'sipandi_loans_v2.5') {
+        try {
+          const updatedLoans = localStorage.getItem('sipandi_loans_v2.5');
+          if (updatedLoans) {
+            state.loans = JSON.parse(updatedLoans);
+            renderApp();
+            showToast('Data peminjaman diperbarui otomatis!', 'info');
+          }
+        } catch (err) {
+          console.error('Gagal menyinkronkan data storage:', err);
+        }
+      }
+    });
+
+    /* ==========================================================================
+       12. INITIALIZATION ON WINDOW LOAD
+       ========================================================================== */
+    window.addEventListener('DOMContentLoaded', () => {
+      initStore();
+    });
+  </script>
+</body>
+</html>
